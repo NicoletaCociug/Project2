@@ -17,6 +17,7 @@ class GroupChatPage:
         self.symmetric_key = None
 
         master.title(f"Chat = {group_name}")
+        self,master.geometry("1000x800")
         self.setup_widgets()
         if self.is_member:
             self.symmetric_key = self.get_and_decrypt_symmetric_key(self.username)
@@ -32,6 +33,7 @@ class GroupChatPage:
         self.chat_display.pack(padx=20, pady=20, fill=tk.BOTH, expand=True)
 
         # Conditional setup based on group membership
+        print(f"is the user a member of the group?: {self.is_member}")
         if self.is_member:
             # Enable message entry and send button only for group members
             self.message_entry = tk.Entry(self.master)
@@ -49,6 +51,9 @@ class GroupChatPage:
 
             self.add_user_button = tk.Button(self.master, text="Add User", command=self.add_user_to_group)
             self.add_user_button.pack(pady=(5,20))
+
+            self.show_add_user_dialog_button = tk.Button(self.master, text="Add user", command=self.show_add_user_dialog)
+            self.show_add_user_dialog_button.pack(pady=(5,20))
         else:
             # For non-members, display a read-only message and disable message-related widgets
             self.read_only_label = tk.Label(self.master, text="You are viewing this group in read-only mode.")
@@ -69,6 +74,56 @@ class GroupChatPage:
                 self.message_entry.delete(0, tk.END)
             else:
                 messagebox.showerror("Error", f"Failed to send message: {response.text}")
+
+    def show_add_user_dialog(self):
+        non_members = self.get_non_group_members()
+        if not non_members:
+            messagebox.showinfo("Info", "No more users to add")
+            return
+
+        #create a new toplevel window
+        self.add_user_dialog = tk.Toplevel(self.master)
+        self.add_user_dialog.title("Add Users")
+        
+        #label
+        tk.Label(self.add_user_dialog, text="Select users to add:").pack()
+
+        #listbox for non-members
+        self.non_members_listbox = tk.Listbox(self.add_user_dialog, selectmode='multiple')
+        self.non_members_listbox.pack(pady=5)
+
+        #insert non-member usernames into the listbox
+        for user in non_members:
+            self.non_members_listbox.insert(tk.END, user)
+
+        #button to confirm addition
+        tk.Button(self.add_user_dialog, text="Add", command=self.perform_add_user_to_group).pack()
+
+    def update_non_member_list(self):
+        # Call this method to update the combobox with non-member usernames
+        non_members = self.get_non_group_members()
+        self.users_combobox['values'] = non_members
+
+    def perform_add_user_to_group(self):
+        selected_indices = self.non_members_listbox.curselection()
+        selected_users = [self.non_members_listbox.get(i) for i in selected_indices]
+
+        for user in selected_users:
+            self.add_user_to_group_post_creation(user)
+
+        # Close the dialog
+        self.add_user_dialog.destroy()
+        # Update the non-member combobox
+        self.update_non_member_list()
+
+    def add_user_to_group_post_creation(self, selected_user):
+        # Call the API to add the user to the group
+        response = requests.post('http://localhost:5000/add_user_to_group', json={
+            'group_name': self.group_name,
+            'username': selected_user
+        })
+        if not response.ok:
+            messagebox.showerror("Error", f"Failed to add {selected_user} to the group")
 
     def fetch_and_display_messages(self):
         messages_response = requests.get(f'http://localhost:5000/fetch_messages_by_name/{self.group_name}')

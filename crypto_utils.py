@@ -16,10 +16,12 @@ def encrypt_private_key(private_key, password):
     """
     Encrypt a private RSA key using a password.
     """
+    #the private key passed is decoded, but we 
+    private_key = private_key.encode()
     salt = get_random_bytes(16)  # Random salt for key derivation
     key = PBKDF2(password, salt, dkLen=32, count=1000000)  # Derive a key from the password
     cipher = AES.new(key, AES.MODE_EAX)  # Create a new AES cipher in EAX mode
-    private_key_bytes = private_key.exportKey('PEM')  # Export the private key to bytes
+    private_key_bytes = private_key  # Export the private key to bytes
     ciphertext, tag = cipher.encrypt_and_digest(private_key_bytes)  # Encrypt and get the MAC tag
     encrypted_private_key = salt + cipher.nonce + tag + ciphertext  # Concatenate salt, nonce, tag, and ciphertext for storage
     return encrypted_private_key
